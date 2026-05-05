@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Squid</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #1a1a2e; }
+
+    .header { background: #1a1a2e; color: #fff; padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-actions { display: flex; gap: 10px; }
+
+    .btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.35); }
+    .btn-ghost { background: transparent; color: #555; border: 1px solid #ddd; }
+    .btn-danger { background: transparent; color: #dc2626; border: none; cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 4px; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat { background: #fff; border-radius: 10px; padding: 18px 22px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .stat .val { font-size: 32px; font-weight: 700; }
+    .stat .lbl { font-size: 12px; color: #888; margin-top: 4px; }
+    .stat.total .val  { color: #1a1a2e; }
+    .stat.active .val { color: #16a34a; }
+    .stat.expiring .val { color: #d97706; }
+    .stat.expired .val  { color: #dc2626; }
+
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .filters { display: flex; gap: 6px; }
+    .f-btn { padding: 6px 16px; border: 1px solid #ddd; border-radius: 20px; background: #fff; cursor: pointer; font-size: 13px; color: #666; }
+    .f-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+
+    .search { margin-left: auto; }
+    .search input { padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; width: 220px; outline: none; }
+    .search input:focus { border-color: #6366f1; }
+
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8f9fa; }
+    th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #eee; }
+    td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .badge.active   { background: #dcfce7; color: #16a34a; }
+    .badge.expiring { background: #fef3c7; color: #d97706; }
+    .badge.expired  { background: #fee2e2; color: #dc2626; }
+
+    .receipt-link { color: #6366f1; text-decoration: none; font-size: 13px; }
+    .receipt-link:hover { text-decoration: underline; }
+
+    .empty { padding: 64px; text-align: center; color: #aaa; }
+    .empty strong { display: block; font-size: 16px; color: #888; margin-bottom: 6px; }
+
+    /* Modal */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 12px; padding: 28px; width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 18px; margin-bottom: 22px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fg { margin-bottom: 16px; }
+    .fg label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
+    .fg input, .fg select { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
+    .fg input:focus, .fg select:focus { border-color: #6366f1; }
+
+    .file-zone { border: 2px dashed #ddd; border-radius: 6px; padding: 20px; text-align: center; cursor: pointer; color: #999; font-size: 13px; transition: border-color .15s; }
+    .file-zone:hover { border-color: #6366f1; color: #6366f1; }
+    .file-zone input { display: none; }
+
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+    @media (max-width: 640px) {
+      .header { padding: 12px 16px; }
+      .header h1 { font-size: 16px; }
+      .btn { padding: 7px 12px; font-size: 13px; }
+
+      .container { padding: 16px 12px; }
+
+      .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+      .stat { padding: 14px 16px; }
+      .stat .val { font-size: 26px; }
+
+      .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+      .filters { flex-wrap: wrap; }
+      .search { margin-left: 0; }
+      .search input { width: 100%; }
+
+      .card { border-radius: 8px; overflow-x: auto; }
+      table { min-width: 700px; }
+
+      .form-row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦑 Squid</h1>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Add Payment</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat total">  <div class="val" id="s-total">0</div>   <div class="lbl">Total clients</div></div>
+    <div class="stat active"> <div class="val" id="s-active">0</div>  <div class="lbl">Active</div></div>
+    <div class="stat expiring"><div class="val" id="s-expiring">0</div><div class="lbl">Expiring soon</div></div>
+    <div class="stat expired"> <div class="val" id="s-expired">0</div> <div class="lbl">Expired</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button class="f-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="f-btn" onclick="setFilter('active', this)">Active</button>
+      <button class="f-btn" onclick="setFilter('expiring', this)">Expiring</button>
+      <button class="f-btn" onclick="setFilter('expired', this)">Expired</button>
+    </div>
+    <div class="search">
+      <input type="text" id="search-input" placeholder="Search by name or game..." oninput="renderTable()">
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Game</th>
+          <th>Amount (฿)</th>
+          <th>Payment</th>
+          <th>Paid on</th>
+          <th>Period</th>
+          <th>Valid until</th>
+          <th>Status</th>
+          <th>Receipt</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none">
+      <strong>No records found</strong>
+      Add your first payment to get started
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>New Payment</h2>
+    <form id="form" onsubmit="submitForm(event)">
+      <div class="form-row">
+        <div class="fg">
+          <label>Client name</label>
+          <input type="text" name="client_name" required placeholder="John">
+        </div>
+        <div class="fg">
+          <label>Game</label>
+          <input type="text" name="game" required list="games" placeholder="Valorant">
+          <datalist id="games">
+            <option value="Valorant">
+            <option value="CS2">
+            <option value="Dota 2">
+            <option value="League of Legends">
+            <option value="Mobile Legends">
+            <option value="PUBG">
+            <option value="Fortnite">
+            <option value="Apex Legends">
+            <option value="Overwatch 2">
+          </datalist>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="fg">
+          <label>Amount (baht)</label>
+          <input type="number" name="amount_baht" required placeholder="1500" min="0">
+        </div>
+        <div class="fg">
+          <label>Payment method</label>
+          <select name="payment_method" required>
+            <option value="cash">Cash</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="fg">
+          <label>Payment date</label>
+          <input type="date" name="payment_date" id="payment-date" required>
+        </div>
+        <div class="fg">
+          <label>Subscription period</label>
+          <select name="subscription_period" required>
+            <option value="1_day">1 day</option>
+            <option value="1_week">1 week</option>
+            <option value="1_month" selected>1 month</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Receipt (photo or screenshot)</label>
+        <label class="file-zone">
+          <input type="file" name="receipt" id="receipt-input" accept="image/*,.pdf" onchange="updateFileLabel(this)">
+          <span id="file-label">Click to attach file (optional)</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let data = [];
+  let filter = 'all';
+
+  const PERIODS  = { '1_day': '1 day', '1_week': '1 week', '1_month': '1 month' };
+  const METHODS  = { 'cash': 'Cash', 'transfer': 'Transfer' };
+  const STATUSES = { 'active': 'Active', 'expiring': 'Expiring', 'expired': 'Expired' };
+
+  async function load() {
+    const res = await fetch('/payments');
+    data = await res.json();
+    renderStats();
+    renderTable();
+  }
+
+  function renderStats() {
+    document.getElementById('s-total').textContent    = data.length;
+    document.getElementById('s-active').textContent   = data.filter(r => r.status === 'active').length;
+    document.getElementById('s-expiring').textContent = data.filter(r => r.status === 'expiring').length;
+    document.getElementById('s-expired').textContent  = data.filter(r => r.status === 'expired').length;
+  }
+
+  function renderTable() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    let rows = filter === 'all' ? data : data.filter(r => r.status === filter);
+    if (q) rows = rows.filter(r => r.client_name.toLowerCase().includes(q) || r.game.toLowerCase().includes(q));
+
+    const tbody = document.getElementById('tbody');
+    const empty = document.getElementById('empty');
+
+    if (!rows.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><strong>${r.client_name}</strong></td>
+        <td>${r.game}</td>
+        <td>฿${Number(r.amount_baht).toLocaleString()}</td>
+        <td>${METHODS[r.payment_method] || r.payment_method}</td>
+        <td>${fmt(r.payment_date)}</td>
+        <td>${PERIODS[r.subscription_period] || r.subscription_period}</td>
+        <td>${fmt(r.end_date)}</td>
+        <td><span class="badge ${r.status}">${STATUSES[r.status]}</span></td>
+        <td>${r.receipt_filename
+          ? `<a class="receipt-link" href="/receipts/${r.id}" target="_blank">View</a> &middot; <a class="receipt-link" href="/receipts/${r.id}?download=1">↓</a>`
+          : '—'}</td>
+        <td><button class="btn-danger" onclick="del(${r.id})">Delete</button></td>
+      </tr>`).join('');
+  }
+
+  function fmt(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  function setFilter(f, btn) {
+    filter = f;
+    document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+  }
+
+  function openModal() {
+    document.getElementById('form').reset();
+    document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('file-label').textContent = 'Click to attach file (optional)';
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  function updateFileLabel(input) {
+    document.getElementById('file-label').textContent = input.files[0]?.name || 'Click to attach file (optional)';
+  }
+
+  async function submitForm(e) {
+    e.preventDefault();
+    const res = await fetch('/payments', { method: 'POST', body: new FormData(e.target) });
+    if (res.ok) { closeModal(); load(); }
+    else alert('Failed to save. Please try again.');
+  }
+
+  async function del(id) {
+    if (!confirm('Delete this record?')) return;
+    await fetch(`/payments/${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  function exportCSV() { window.location.href = '/export/csv'; }
+
+  document.getElementById('overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+  load();
+</script>
+</body>
+</html>
